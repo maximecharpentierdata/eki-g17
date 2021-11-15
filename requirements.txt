@@ -1,0 +1,5 @@
+pandas
+geopandas
+matplotlib
+contextily
+nb_black
