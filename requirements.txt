@@ -3,3 +3,4 @@ geopandas
 matplotlib
 contextily
 nb_black
+seaborn
