@@ -31,12 +31,20 @@ Le dossier `diagnostic` contient l'ensemble des analyses de données réalisées
 
 ### Script en mode local avec Docker
 
-`docker build --tag eki-opti ./opti/ `
+D'abord il faut adapter le dockerfile en choisissant le fichier de commandes, le fichier de sortie et le délai de livraison accepté.
+
+`docker build --tag eki-opti .`
 
 `docker run --name eki-contain eki-opti`
 
-On relance le script pour copier le fichier en sortie
+On relance le conteneur pour copier le fichier en sortie
 
 `docker run --name eki-contain`
 
 `docker cp eki-contain:new_routes.csv ./new_routes.csv`
+
+### Script en local sans Docker
+
+`pip install -r requirements.txt`
+
+`python ./opti/optimize.py <orders.csv> <delay> <new_routes.csv>`

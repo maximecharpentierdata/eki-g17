@@ -1,25 +1,46 @@
 import pandas as pd
 import numpy as np
-import os
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 from tqdm import tqdm
 import haversine
-
-DATA_DIR = "./data_clean/"
+import argparse
 
 pd.options.mode.chained_assignment = None
 
-## Data loading
+# Data loading
 
+# Parsing inputs
 
-def load_data(DATA_DIR):
-    for csv_file in os.listdir(DATA_DIR):
-        if csv_file[-3:] == "csv":
-            globals()[csv_file[:-4]] = pd.read_csv(DATA_DIR + csv_file)
+parser = argparse.ArgumentParser()
+parser.add_argument("orders", type=str)
+parser.add_argument("delay", type=int)
+parser.add_argument("out", type=str)
 
+args = parser.parse_args()
 
-## Preparing data for one day and one warehouse
+# Loading
+
+cities = pd.read_csv("../data_clean/cities.csv")
+
+orders = pd.read_csv(args.orders)
+delay = args.delay
+out = args.out
+
+# Including delivery delay
+
+if delay > 1:
+
+    dates = orders["delivered_date"].unique().tolist()
+    dates.sort()
+
+    for index in range(1, len(dates) - delay, delay):
+        for i in range(1, delay):
+            orders.loc[
+                orders["delivered_date"] == dates[index + i], "delivered_date"
+            ] = dates[index]
+
+# Preparing data for one day and one warehouse
 
 
 def create_df(date, warehouse, capacity):
@@ -38,11 +59,11 @@ def create_df(date, warehouse, capacity):
     over_capacity_cities = groupedby[groupedby["order_total_volume"] >= capacity]
     over_capacity_orders = sub_orders[
         ["delivery_location", "order_total_volume", "order_id", "n_units"]
-    ][sub_orders["delivery_location"].isin(over_capacity_cities)]
+    ][sub_orders["delivery_location"].isin(over_capacity_cities["delivery_location"])]
     over_capacity_orders["order_id"] = over_capacity_orders["order_id"].apply(
         lambda order_id: [order_id]
     )
-    groupedby = new_groupedby.append(over_capacity_orders)
+    groupedby = new_groupedby.append(over_capacity_orders, ignore_index=True)
 
     # Handling warehouse
     if warehouse in groupedby.delivery_location.tolist():
@@ -50,7 +71,7 @@ def create_df(date, warehouse, capacity):
         house.order_total_volume = 0
         house.n_units = 0
         house.order_id = None
-        groupedby = pd.concat([house, groupedby], axis=0)
+        groupedby = pd.concat([house, groupedby], axis=0, ignore_index=True)
     else:
         house = pd.DataFrame(
             dict(
@@ -60,7 +81,7 @@ def create_df(date, warehouse, capacity):
                 order_id=[None],
             )
         )
-        groupedby = pd.concat([house, groupedby], axis=0)
+        groupedby = pd.concat([house, groupedby], axis=0, ignore_index=True)
 
     return pd.merge(
         groupedby,
@@ -87,11 +108,11 @@ def create_data(date, warehouse, capacity):
     df = create_df(date, warehouse, capacity)
     distances = _distance_calculator(df)
     data = dict(
-        demands=df.order_total_volume,
+        demands=df.order_total_volume * 100,
         distances=distances * 1000,
         depot=0,
         num_vehicles=50,
-        vehicle_capacity=capacity,
+        vehicle_capacity=int(capacity * 100),
     )
     return data, df
 
@@ -100,7 +121,6 @@ def create_data(date, warehouse, capacity):
 
 
 def save_solution(data, manager, routing, solution):
-    """."""
     vehicules = []
     for vehicle_id in range(data["num_vehicles"]):
         index = routing.Start(vehicle_id)
@@ -120,7 +140,7 @@ def save_solution(data, manager, routing, solution):
             dict(
                 route_distance=route_distance / 1000,
                 stops_vehicle=stops_vehicle,
-                route_load=route_load,
+                route_load=route_load / 100,
             )
         )
     return vehicules
@@ -224,11 +244,7 @@ def run(date, warehouse, capacity):
     output = solve(data)
     if output:
         new_routes = make_routes(output, df, date, warehouse)
-        if "fill_volume" in new_routes:
-            if new_routes.fill_volume.max() > 81.25:
-                return run(date, warehouse, capacity - 2)
-            else:
-                return new_routes
+        return new_routes
 
 
 def main():
@@ -236,17 +252,16 @@ def main():
     errors = []
     for date in tqdm(orders.delivered_date.unique().tolist()):
         for warehouse in orders.from_warehouse.unique().tolist():
-            output = run(date, warehouse, 80)
+            output = run(date, warehouse, 81.25)
             if output is not None:
-                new_routes = new_routes.append(output)
+                new_routes = new_routes.append(output, ignore_index=True)
             else:
                 print("Erreur!")
                 errors.append((date, warehouse))
 
-    new_routes.to_csv("./new_routes.csv")
+    new_routes.to_csv(out)
     print("End!")
 
 
 if __name__ == "__main__":
-    load_data(DATA_DIR)
     main()
