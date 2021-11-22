@@ -27,5 +27,16 @@ Le dossier `diagnostic` contient l'ensemble des analyses de données réalisées
 
 - `costs_revenues.ipynb` contient une première analyse des coûts
 
-## Opti
+## Script d'optimisation du routage
 
+### Script en mode local avec Docker
+
+`docker build --tag eki-opti ./opti/ `
+
+`docker run --name eki-contain eki-opti`
+
+On relance le script pour copier le fichier en sortie
+
+`docker run --name eki-contain`
+
+`docker cp eki-contain:new_routes.csv ./new_routes.csv`
