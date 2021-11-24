@@ -34,7 +34,7 @@ if delay > 1:
     dates = orders["delivered_date"].unique().tolist()
     dates.sort()
 
-    for index in range(1, len(dates) - delay, delay):
+    for index in range(0, len(dates) - delay, delay):
         for i in range(1, delay):
             orders.loc[
                 orders["delivered_date"] == dates[index + i], "delivered_date"

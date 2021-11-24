@@ -8,4 +8,4 @@ RUN pip3 install -r /opti/requirements.txt
 
 COPY . .
 
-CMD ["python3", "opti/optimize.py", "scenario_2/orders_s2.csv", "3", "scenario_2/new_routes_s2_3.csv"]
+CMD ["python3", "opti/optimize.py", "scenario_3/orders_s3.csv", "2", "scenario_3/new_routes_s3_2.csv"]
